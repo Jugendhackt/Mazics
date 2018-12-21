@@ -11,6 +11,7 @@ def Unpack():
     File = open( "Saves/SaveFile.maz", "rb" )
     Data = pickle.load(File)
     File.close()
+    print(Data[1:10])
     return Data,len(Data)-2,len(Data[1])
 def ColorUp(Data):
     B = 0
@@ -63,7 +64,7 @@ AvColor = [0,255,0]
 # AnimPlayer
 FrameID = 0
 MaxFrameID = 0
-screen = pygame.display.set_mode([1280,720])
+screen = pygame.display.set_mode([1280,720],pygame.FULLSCREEN)
 # Render Mode
 RenderBars = True
 RenderAv = True
@@ -75,9 +76,57 @@ Data,MaxFrameID,DataPoints = Unpack()
 # MainLoop
 cl = pygame.time.Clock()
 #Music
+def mselect(songtitle):
+    modes = ["Normal","HackedData","ExtremRAM","HistoDot"]
+    fonts = []
+    hfonts = []
+    logo = pygame.image.load("MazicsLogoWhite.png")
+    font = pygame.font.SysFont("Arial", 40)
+    print(songtitle)
+    song = font.render("track: "+songtitle.split("Music/")[1], True,[255,255,255])
+    colors = [[255,255,255],
+              [0,255,0],
+              [255,0,0],
+              [255,255,255]]
+    for tid,typ in enumerate(modes):
+        image = font.render(typ, True,colors[tid])
+        fonts.append(image)
+        image = font.render(typ, True,[255,255,0])
+        hfonts.append(image)
+    lactive = True
+    Mode = None
+    while lactive:
+        pressed = False
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                lactive = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                pressed = True
+            elif event.type == pygame.KEYDOWN:
+                lactive = False
+        # render logo
+        screen.blit(logo,[20,20])
+        screen.blit(song,[20,600])
+        for fid,f in enumerate(fonts):
+            mp = pygame.mouse.get_pos()
+            rendered = False
+            if mp[0] > 700 and mp[0] < 850:
+                if mp[1] > 40+fid*50 and mp[1] < 80+fid*50:
+                    screen.blit(hfonts[fid],[700,40+fid*50])
+                    rendered = True
+                    if pressed :
+                        Mode = modes[fid]
+            if not rendered:
+                screen.blit(f,[700,40+fid*50])
+        pygame.display.flip()
+        if Mode is not None:
+            print("STOP")
+            lactive = False
+    return Mode
+
 pygame.display.set_caption("Mazics Visualiser Tool (external Version)")
-Mode = easygui.choicebox("Display Mode:","Choose View Mode",["Normal","HackedData","ExtremRAM"])
 pygame.mixer.music.load(Data[0])
+Mode = mselect(Data[0])
 Data = Data[1:]
 pygame.mixer.music.set_volume(1)
 pygame.mixer.music.play(-1)
@@ -94,6 +143,8 @@ if Mode == "Normal":
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 Aktiv = False
+            elif event.type == pygame.KEYDOWN:
+                Aktiv = False
 elif Mode == "HackedData":
     DisplayFont = []
     while Aktiv :
@@ -101,6 +152,8 @@ elif Mode == "HackedData":
         cl.tick(10)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                Aktiv = False
+            elif event.type == pygame.KEYDOWN:
                 Aktiv = False
         font = pygame.font.SysFont("Arial",20)
         DataText = DataPoints
@@ -119,9 +172,11 @@ elif Mode == "ExtremRAM" :
         exec("DataBit"+str(ID)+" = []")
     while Aktiv :
         screen.fill([0,0,0])
-        #cl.tick(10)
+        cl.tick(10)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                Aktiv = False
+            elif event.type == pygame.KEYDOWN:
                 Aktiv = False
         AktData = NextPack(Data)
         for ID,Item in enumerate(AktData) :
@@ -136,5 +191,76 @@ elif Mode == "ExtremRAM" :
             except :
                 pass
         pygame.display.flip()
+elif Mode == "HistoDot":
+    history = []
+    lowhistory = []
+    avh = []
+    hlen = 100
+    cstp = 255/hlen
+    Thikn = screen.get_width()/DataPoints
+    while Aktiv:
+        AktData = NextPack(Data)
+        Sdata = ColorUp(AktData)
+        screen.fill([0,0,0])
+        cl.tick(10)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                Aktiv = False
+            elif event.type == pygame.KEYDOWN:
+                Aktiv = False
+        Y = 0
+        LY = 100000
+        LX = 0
+        for dpid, dp in enumerate(AktData):
+            if dp > Y :
+                Y = dp
+                X = dpid* Thikn
+            if dp <= LY :
+                LY = dp
+                LX = dpid
+        pos = [X,Y]
+        lpos = [LX,LY*10]
+        history.append(pos)
+        lowhistory.append((lpos))
+        lp = []
+        llp = []
+        for hid,item in enumerate(history):
+            if item[1] > 700 :
+                item[1] = 700
+            pygame.draw.rect(screen,[cstp*hid, 0, 0],[item[0]-4,item[1]-4,8,8])
+            try:
+                pygame.draw.line(screen,[cstp*hid, cstp*hid, cstp*hid],[item[0]-1,item[1]],lp,2)
+            except:
+                pass
+            lp = [item[0],item[1]]
+        for hid,item in enumerate(lowhistory):
+            if item[1] > 700 :
+                item[1] = 700
+            pygame.draw.rect(screen,[0, 0, cstp*hid],[item[0]-2,item[1]-2,4,4])
+            try:
+                pygame.draw.line(screen,[cstp*hid, cstp*hid, cstp*hid],[item[0]-1,item[1]],llp)
+            except:
+                pass
+            llp = [item[0],item[1]]
+        avx = (llp[0] +lp[0]*2)/3
+        avh.append([avx,Sdata[2]])
+        avlp = []
+        for hid,item in enumerate(avh):
+            if item[1] > 700 :
+                item[1] = 700
+            pygame.draw.rect(screen,[0, cstp*hid, 0],[item[0]-2,item[1]-2,4,4])
+            try:
+                pygame.draw.line(screen,[cstp*hid, cstp*hid, cstp*hid],[item[0]-1,item[1]],avlp)
+            except:
+                pass
+            avlp = [item[0],item[1]]
+        if len(history) > hlen :
+            history = history[1:]
+        if len(avh) > hlen :
+            avh = avh[1:]
+        if len(lowhistory) > hlen:
+            lowhistory = lowhistory[1:]
+        pygame.display.flip()
+
 
 pygame.quit()
